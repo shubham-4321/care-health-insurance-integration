@@ -1,24 +1,22 @@
-type Token = {
-  tokenKey: string;
-  tokenValue: string;
-};
+let tokens: { tokenKey: string; tokenValue: string }[] = [];
+let sessionId: string | null = null;
 
-let tokens: Token[] = [];
-
-export const setTokens = (newTokens: Token[]) => {
+export const setTokens = (newTokens: any[], newSessionId: string) => {
   tokens = [...newTokens];
+  sessionId = newSessionId;
 };
 
-export const getToken = (): Token => {
-  if (tokens.length === 0) {
-    throw new Error("No tokens available. Regenerate session.");
-  }
-
-  const token = tokens.shift(); // remove first token
-
-  if (!token) {
-    throw new Error("Token fetch failed");
-  }
-
-  return token;
+export const getToken = () => {
+  return tokens.shift(); 
 };
+
+export const hasValidTokens = () => {
+  return tokens.length > 0;
+};
+
+export const clearTokens = () => {
+  tokens = [];
+  sessionId = null;
+};
+
+export const getSessionId = () => sessionId;

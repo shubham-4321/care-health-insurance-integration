@@ -1,21 +1,49 @@
-import express from "express";
 import dotenv from "dotenv";
 dotenv.config();
+
+import app from "./app";
 import { config } from "./config/env";
-import { encryptToken } from "./utils/encryption";
-import { setTokens, getToken } from "./services/tokenManager";
-import { generatePartnerToken } from "./services/careApi";
-import routes from "./routes";
-import { httpLogger } from "./middleware/logger";
+import { logger } from "./config/logger";
+import { db } from "./config/db";
 
-const app = express();
+const startServer = async (): Promise<void> => {
+  try {
+    // ── Test DB connection ─────────────────────────────────
+    await db.$connect();
+    logger.info("[SERVER] Database connected successfully");
 
-app.use(express.json())
+    // ── Start server ───────────────────────────────────────
+    app.listen(config.app.port, () => {
+      logger.info(
+        `[SERVER] Running on port ${config.app.port} in ${config.app.nodeEnv} mode`
+      );
+    });
+  } catch (err) {
+    logger.error("[SERVER] Failed to start", { err });
+    process.exit(1);
+  }
+};
 
-routes(app);
-
-app.use(httpLogger);
-
-app.listen(config.port, () => {
-  console.log(`Server running on port ${config.port}`);
+// ─── Graceful shutdown ─────────────────────────────────────
+process.on("SIGTERM", async () => {
+  try {
+    logger.info("[SERVER] SIGTERM received — shutting down gracefully");
+    await db.$disconnect();
+    process.exit(0);
+  } catch (err) {
+    logger.error("[SERVER] Error during shutdown", { err });
+    process.exit(1);
+  }
 });
+
+process.on("uncaughtException", (err) => {
+  logger.error("[SERVER] Uncaught exception", { err });
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (reason) => {
+  logger.error("[SERVER] Unhandled rejection", { reason });
+  process.exit(1);
+});
+
+startServer();

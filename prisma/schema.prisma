@@ -1,0 +1,153 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── USER ─────────────────────────────────────────────────
+model User {
+  id                  String      @id @default(uuid())
+  email               String      @unique
+  password            String      // bcrypt hashed
+  firstName           String
+  lastName            String
+  mobile              String      @unique
+  dateOfBirth         String      // stored as dd/MM/yyyy
+  panNumber           String      @unique // encrypted before storing
+  
+  // ── Address ───────────────────────────────────────────
+  addressLine1        String
+  addressLine2        String?
+  city                String
+  state               String
+  pincode             String
+
+  // ── Account Security ──────────────────────────────────
+  isActive            Boolean     @default(true)
+  isMobileVerified    Boolean     @default(false)
+  failedLoginAttempts Int         @default(0)
+  lockedUntil         DateTime?   // null = not locked
+  lastLoginAt         DateTime?
+
+  // ── KYC ───────────────────────────────────────────────
+  kycStatus           KycStatus   @default(PENDING)
+
+  // ── Timestamps ────────────────────────────────────────
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  // ── Relations ─────────────────────────────────────────
+  refreshTokens       RefreshToken[]
+  proposals           Proposal[]
+
+  @@map("users")
+}
+
+// ─── KYC STATUS ───────────────────────────────────────────
+enum KycStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+// ─── REFRESH TOKEN ────────────────────────────────────────
+model RefreshToken {
+  id          String    @id @default(uuid())
+  token       String    @unique
+  userId      String
+  expiresAt   DateTime
+  isRevoked   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+// ─── PROPOSAL ─────────────────────────────────────────────
+model Proposal {
+  id              String          @id @default(uuid())
+  userId          String
+  proposalNum     String          @unique
+  loanAccNum      String          @unique
+  loanAmount      Float
+  loanTenure      Int
+  loanTenureUnit  String
+  loanDisbursalDt String
+  coverType       String
+  sumInsured      String
+  term            Int
+  addOns          String?
+  premium         Float
+  baseProductId   String
+  status          ProposalStatus  @default(PAYMENT_PENDING)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  user            User            @relation(fields: [userId], references: [id])
+  paymentRecords  PaymentRecord[]
+  policy          Policy?
+
+  @@map("proposals")
+}
+
+// ─── PROPOSAL STATUS ──────────────────────────────────────
+enum ProposalStatus {
+  PAYMENT_PENDING
+  PAYMENT_INITIATED
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+  INFORCE
+  PENDING_UW
+  DECLINED
+}
+
+// ─── PAYMENT RECORD ───────────────────────────────────────
+model PaymentRecord {
+  id            String        @id @default(uuid())
+  proposalId    String
+  proposalNum   String
+  policyNum     String?
+  txnRefNum     String?
+  receiptNum    String?
+  uwDecision    String?
+  errorFlag     String?
+  errorMessage  String?
+  status        PaymentStatus
+  rawResponse   Json?
+  createdAt     DateTime      @default(now())
+
+  proposal      Proposal      @relation(fields: [proposalId], references: [id])
+
+  @@map("payment_records")
+}
+
+// ─── PAYMENT STATUS ───────────────────────────────────────
+enum PaymentStatus {
+  INITIATED
+  SUCCESS
+  FAILED
+  UNKNOWN
+}
+
+// ─── POLICY ───────────────────────────────────────────────
+model Policy {
+  id              String    @id @default(uuid())
+  proposalId      String    @unique
+  proposalNum     String    @unique
+  policyNum       String    @unique
+  policyStatus    String
+  premium         Float
+  commencementDt  String?
+  maturityDt      String?
+  pdfGenerated    Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  proposal        Proposal  @relation(fields: [proposalId], references: [id])
+
+  @@map("policies")
+}

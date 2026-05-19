@@ -72,6 +72,7 @@ model Proposal {
   id              String          @id @default(uuid())
   userId          String
   proposalNum     String          @unique
+  proposerGuid    String          // CSRF for payment form — must equal proposer party's guid sent in createPolicy
   loanAccNum      String          @unique
   loanAmount      Float
   loanTenure      Int
@@ -81,9 +82,11 @@ model Proposal {
   sumInsured      String
   term            Int
   addOns          String?
-  premium         Float
+  premium         Float?
   baseProductId   String
   status          ProposalStatus  @default(PAYMENT_PENDING)
+  rawRequest      Json?           // full createPolicy payload for debugging / replay
+  rawResponse     Json?           // Care's createPolicy response
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
@@ -131,6 +134,59 @@ enum PaymentStatus {
   SUCCESS
   FAILED
   UNKNOWN
+}
+
+// ─── CARE PARTNER SESSION ─────────────────────────────────
+// Tracks a Care `generatePartnerToken` response: one session lives 15 min
+// and yields 25 single-use tokens. Per Care doc v1.0 (page 5).
+model CareSession {
+  id          String      @id @default(uuid())
+  sessionId   String      @unique // value Care returned in `partnerTokenGeneratorInputIO.sessionId`
+  expiresAt   DateTime    // createdAt + 15 minutes
+  createdAt   DateTime    @default(now())
+
+  tokens      CareToken[]
+
+  @@map("care_sessions")
+}
+
+// ─── CARE TOKEN ───────────────────────────────────────────
+// One row per token in `listOfToken[]`. Single-use: `isUsed=true` after consumption.
+model CareToken {
+  id          String      @id @default(uuid())
+  sessionId   String      // FK → CareSession.id
+  tokenKey    String
+  tokenValue  String
+  isUsed      Boolean     @default(false)
+  usedAt      DateTime?
+  createdAt   DateTime    @default(now())
+
+  session     CareSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, isUsed])
+  @@map("care_tokens")
+}
+
+// ─── CARE API AUDIT LOG ───────────────────────────────────
+// One row per outbound Care API call — used for support, debugging,
+// reconciliation, and meeting Care's "report errors to CHI" workflow
+// (doc page 17).
+model CareApiLog {
+  id            String   @id @default(uuid())
+  label         String   // e.g. "createPolicy", "generatePartnerToken"
+  url           String
+  request       Json?
+  response      Json?
+  errorMessage  String?
+  httpStatus    Int?
+  durationMs    Int?
+  userId        String?  // null for partner-level calls like token gen
+  proposalNum   String?  // best-effort tag for fast filtering
+  createdAt     DateTime @default(now())
+
+  @@index([label, createdAt])
+  @@index([proposalNum])
+  @@map("care_api_logs")
 }
 
 // ─── POLICY ───────────────────────────────────────────────

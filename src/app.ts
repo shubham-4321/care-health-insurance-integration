@@ -5,7 +5,10 @@ import { config } from "./config/env";
 import { logger } from "./config/logger";
 import { generalLimiter } from "./middleware/rateLimiter";
 import { errorHandler } from "./middleware/errorHandler";
-import authRoutes from "./routes/authRoutes"
+import authRoutes from "./routes/authRoutes";
+import policyRoutes from "./routes/policyRoutes";
+import masterDataRoutes from "./routes/masterDataRoutes";
+import { paymentCallbackController } from "./controllers/policyController";
 
 const app = express();
 
@@ -102,7 +105,13 @@ app.get("/health", (_req: Request, res: Response) => {
 // ─── 7. Routes ────────────────────────────────────────────
 // Will be added here in next steps
 app.use("/api/v1/auth", authRoutes);
-// app.use("/api/v1/insurance", insuranceRoutes);
+app.use("/api/v1/policy", policyRoutes);
+app.use("/api/v1/master", masterDataRoutes);
+
+// ─── Public: Care payment callback ────────────────────────
+// Care POSTs the payment result form-urlencoded — no JWT possible.
+// Correlation is via the proposalNum query string in returnURL.
+app.post("/api/v1/policy/payment/callback", paymentCallbackController);
 
 // ─── 8. 404 Handler ───────────────────────────────────────
 // Any route not matched above returns clean 404

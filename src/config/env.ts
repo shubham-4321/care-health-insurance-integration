@@ -49,6 +49,17 @@ export const config = {
     returnUrl: required("RETURN_URL"),
   },
 
+  frontend: {
+    successUrl: optional(
+      "FRONTEND_SUCCESS_URL",
+      "https://example.com/insurance/success?policyNum={policyNum}&proposalNum={proposalNum}"
+    ),
+    failureUrl: optional(
+      "FRONTEND_FAILURE_URL",
+      "https://example.com/insurance/failure?proposalNum={proposalNum}&reason={reason}"
+    ),
+  },
+
   security: {
     rateLimitWindowMs: parseInt(optional("RATE_LIMIT_WINDOW_MS", "60000"), 10),
     rateLimitMax: parseInt(optional("RATE_LIMIT_MAX", "100"), 10),

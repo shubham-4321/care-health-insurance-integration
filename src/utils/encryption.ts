@@ -55,8 +55,11 @@ export const encryptToken = (
 };
 
 // ─── Proposal Number Encryption ───────────────────────────
-// Used when redirecting to Care Health payment gateway
-// Flow: proposalNum → AES-256-CBC → Base64 (single — not double)
+// Used when redirecting to Care Health payment gateway.
+// Care doc v1.0 page 10: "Use Existing AES keys and logic" — same as tokenId.
+// Sample value `R2ZyeG5qTFdybXF4N2c5OVcyby80dz09` (32 chars) is consistent
+// with double Base64 of a single AES block.
+// Flow: proposalNum → AES-256-CBC → Base64 → Base64
 export const encryptProposalNumber = (proposalNum: string): string => {
   try {
     const { key, iv } = validateAesConfig();
@@ -65,7 +68,7 @@ export const encryptProposalNumber = (proposalNum: string): string => {
     let encrypted = cipher.update(proposalNum, "utf8", "base64");
     encrypted += cipher.final("base64");
 
-    return encrypted;
+    return Buffer.from(encrypted).toString("base64");
   } catch (err) {
     logger.error("[ENCRYPTION] Proposal number encryption failed", {
       err,

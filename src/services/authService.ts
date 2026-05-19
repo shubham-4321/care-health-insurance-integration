@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import { db } from "../config/db";
 import { config } from "../config/env";
 import { logger } from "../config/logger";
@@ -28,7 +29,6 @@ const generateRefreshToken = (userId: string): string => {
 // PAN is sensitive — never store plain text in DB
 const encryptPan = (pan: string): string => {
   try {
-    const crypto = require("crypto");
     const key = Buffer.from(config.care.aesKey, "utf-8");
     const iv = Buffer.from(config.care.aesIv, "utf-8");
     const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
